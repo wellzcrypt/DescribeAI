@@ -1,0 +1,24 @@
+{
+  "entities": {
+    "HistoryItem": {
+      "title": "History Item",
+      "description": "A generated product description entry",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID of the owner" },
+        "productName": { "type": "string", "description": "Name of the product" },
+        "features": { "type": "string", "description": "Product features used for generation" },
+        "tone": { "type": "string", "description": "Tone used for generation" },
+        "output": { "type": "string", "description": "The generated Markdown content" },
+        "timestamp": { "type": "number", "description": "Server time of creation" }
+      },
+      "required": ["userId", "productName", "output", "tone", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}/history/{historyId}": {
+      "schema": "HistoryItem",
+      "description": "User-specific generation history"
+    }
+  }
+}
