@@ -1,63 +1,114 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DashboardLayout } from '@/components/dashboard/layout'
 import { InputSection } from '@/components/dashboard/input-section'
 import { OutputCard } from '@/components/dashboard/output-card'
-import { Button } from '@/components/ui/button'
-import { Zap } from 'lucide-react'
+
+export interface HistoryItem {
+  id: string
+  features: string
+  tone: 'Professional' | 'Persuasive' | 'Friendly'
+  output: string
+  timestamp: number
+}
 
 export default function Page() {
   const [productFeatures, setProductFeatures] = useState('')
   const [tone, setTone] = useState<'Professional' | 'Persuasive' | 'Friendly'>('Professional')
   const [output, setOutput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [history, setHistory] = useState<Array<{ features: string; tone: string; output: string }>>([])
+  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [currentId, setCurrentId] = useState<string | null>(null)
+
+  // Load history from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('descriptionHistory')
+    if (saved) {
+      try {
+        setHistory(JSON.parse(saved))
+      } catch (e) {
+        console.error('Failed to load history:', e)
+      }
+    }
+  }, [])
+
+  // Save history to localStorage
+  useEffect(() => {
+    localStorage.setItem('descriptionHistory', JSON.stringify(history))
+  }, [history])
 
   const handleGenerate = async () => {
     if (!productFeatures.trim()) return
 
     setIsLoading(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    const generatedOutput = generateDescription(productFeatures, tone)
-    setOutput(generatedOutput)
-    
-    // Add to history
-    setHistory(prev => [
-      { features: productFeatures, tone, output: generatedOutput },
-      ...prev
-    ])
-    
-    setIsLoading(false)
-  }
+    try {
+      const response = await fetch('/api/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ features: productFeatures, tone })
+      })
 
-  const handleHistorySelect = (item: typeof history[0]) => {
-    setProductFeatures(item.features)
-    setTone(item.tone as 'Professional' | 'Persuasive' | 'Friendly')
-    setOutput(item.output)
-  }
+      if (!response.ok) {
+        throw new Error('Failed to generate description')
+      }
 
-  const generateDescription = (features: string, toneType: string): string => {
-    const toneGuides = {
-      Professional: 'Technical, corporate, and formal',
-      Persuasive: 'Compelling, benefit-focused, and action-oriented',
-      Friendly: 'Approachable, conversational, and warm'
+      const data = await response.json()
+      const generatedOutput = data.description
+
+      setOutput(generatedOutput)
+
+      // Add to history
+      const newItem: HistoryItem = {
+        id: Date.now().toString(),
+        features: productFeatures,
+        tone,
+        output: generatedOutput,
+        timestamp: Date.now()
+      }
+
+      setHistory(prev => [newItem, ...prev])
+      setCurrentId(newItem.id)
+    } catch (error) {
+      console.error('Error generating description:', error)
+      setOutput('Error generating description. Please check your API key and try again.')
+    } finally {
+      setIsLoading(false)
     }
+  }
 
-    return `This product excels in delivering exceptional value through its core features: ${features}. 
-    
-With a ${toneGuides[toneType as keyof typeof toneGuides]} approach, this solution transforms how users interact with their daily workflows. Each feature has been meticulously crafted to address real user pain points and deliver measurable results.
+  const handleHistorySelect = (item: HistoryItem) => {
+    setProductFeatures(item.features)
+    setTone(item.tone)
+    setOutput(item.output)
+    setCurrentId(item.id)
+  }
 
-Our users consistently report improved productivity, streamlined processes, and greater satisfaction. The intuitive design ensures quick adoption, while powerful capabilities scale with your growing needs. Experience the difference that thoughtful engineering and user-centric design can make.
+  const handleDeleteHistory = (id: string) => {
+    setHistory(prev => prev.filter(item => item.id !== id))
+    if (currentId === id) {
+      setProductFeatures('')
+      setTone('Professional')
+      setOutput('')
+      setCurrentId(null)
+    }
+  }
 
-Get started today and discover why thousands of teams trust us.`
+  const handleNewGeneration = () => {
+    setProductFeatures('')
+    setTone('Professional')
+    setOutput('')
+    setCurrentId(null)
   }
 
   return (
-    <DashboardLayout history={history} onHistorySelect={handleHistorySelect}>
+    <DashboardLayout
+      history={history}
+      onHistorySelect={handleHistorySelect}
+      onDeleteHistory={handleDeleteHistory}
+      onNewGeneration={handleNewGeneration}
+      currentId={currentId}
+    >
       <div className="flex-1 flex flex-col gap-6 p-6 md:p-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">Description Generator</h1>

@@ -1,21 +1,43 @@
 'use client'
 
 import { useState } from 'react'
+import { useTheme } from 'next-themes'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { History, Settings, Zap, X } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { History, Settings, Zap, X, Plus, MoreVertical, Trash2, Moon, Sun } from 'lucide-react'
+import { PricingModal } from './pricing-modal'
+import { HistoryItem } from '@/app/page'
 import Link from 'next/link'
 
 interface SidebarProps {
-  history: Array<{ features: string; tone: string; output: string }>
-  onHistorySelect: (item: any) => void
+  history: HistoryItem[]
+  onHistorySelect: (item: HistoryItem) => void
+  onDeleteHistory: (id: string) => void
+  onNewGeneration: () => void
+  currentId: string | null
   isOpen: boolean
   onClose: () => void
 }
 
-export function Sidebar({ history, onHistorySelect, isOpen, onClose }: SidebarProps) {
+export function Sidebar({
+  history,
+  onHistorySelect,
+  onDeleteHistory,
+  onNewGeneration,
+  currentId,
+  isOpen,
+  onClose,
+}: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'history' | 'settings'>('history')
+  const [pricingOpen, setPricingOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
 
   return (
     <>
@@ -63,16 +85,26 @@ export function Sidebar({ history, onHistorySelect, isOpen, onClose }: SidebarPr
           {/* Content */}
           <ScrollArea className="flex-1 px-4">
             {activeTab === 'history' ? (
-              <HistoryTab items={history} onSelect={onHistorySelect} />
+              <HistoryTab
+                items={history}
+                onSelect={onHistorySelect}
+                onNew={onNewGeneration}
+                onDelete={onDeleteHistory}
+                currentId={currentId}
+              />
             ) : (
-              <SettingsTab />
+              <SettingsTab theme={theme} onThemeChange={setTheme} onUpgradeClick={() => setPricingOpen(true)} />
             )}
           </ScrollArea>
         </div>
 
         <Separator className="bg-border" />
         <div className="p-4">
-          <Button variant="outline" className="w-full" size="sm">
+          <Button
+            onClick={() => setPricingOpen(true)}
+            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold"
+            size="sm"
+          >
             Upgrade to Pro
           </Button>
         </div>
@@ -129,20 +161,44 @@ export function Sidebar({ history, onHistorySelect, isOpen, onClose }: SidebarPr
 
           <ScrollArea className="flex-1 px-4">
             {activeTab === 'history' ? (
-              <HistoryTab items={history} onSelect={(item) => { onHistorySelect(item); onClose(); }} />
+              <HistoryTab
+                items={history}
+                onSelect={(item) => {
+                  onHistorySelect(item)
+                  onClose()
+                }}
+                onNew={() => {
+                  onNewGeneration()
+                  onClose()
+                }}
+                onDelete={onDeleteHistory}
+                currentId={currentId}
+              />
             ) : (
-              <SettingsTab />
+              <SettingsTab
+                theme={theme}
+                onThemeChange={setTheme}
+                onUpgradeClick={() => {
+                  setPricingOpen(true)
+                }}
+              />
             )}
           </ScrollArea>
         </div>
 
         <Separator className="bg-border" />
         <div className="p-4">
-          <Button variant="outline" className="w-full" size="sm">
+          <Button
+            onClick={() => setPricingOpen(true)}
+            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold"
+            size="sm"
+          >
             Upgrade to Pro
           </Button>
         </div>
       </div>
+
+      <PricingModal open={pricingOpen} onOpenChange={setPricingOpen} />
     </>
   )
 }
@@ -150,41 +206,113 @@ export function Sidebar({ history, onHistorySelect, isOpen, onClose }: SidebarPr
 function HistoryTab({
   items,
   onSelect,
+  onNew,
+  onDelete,
+  currentId,
 }: {
-  items: Array<{ features: string; tone: string; output: string }>
-  onSelect: (item: any) => void
+  items: HistoryItem[]
+  onSelect: (item: HistoryItem) => void
+  onNew: () => void
+  onDelete: (id: string) => void
+  currentId: string | null
 }) {
-  if (items.length === 0) {
-    return (
-      <div className="py-8 text-center">
-        <History className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground">No history yet</p>
-        <p className="text-xs text-muted-foreground mt-1">Generate descriptions to see them here</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-2 py-2">
-      {items.map((item, idx) => (
-        <button
-          key={idx}
-          onClick={() => onSelect(item)}
-          className="w-full text-left p-3 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors group"
-        >
-          <p className="text-sm font-medium text-foreground truncate group-hover:text-accent">
-            {item.features.substring(0, 40)}...
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">{item.tone}</p>
-        </button>
-      ))}
+    <div className="space-y-3 py-2">
+      <Button
+        onClick={onNew}
+        className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold justify-center gap-2"
+        size="sm"
+      >
+        <Plus className="w-4 h-4" />
+        New Generation
+      </Button>
+
+      {items.length === 0 ? (
+        <div className="py-8 text-center">
+          <History className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">No history yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Generate descriptions to see them here</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className={`group p-3 rounded-lg transition-colors cursor-pointer ${
+                currentId === item.id
+                  ? 'bg-accent/20 border border-accent'
+                  : 'bg-secondary hover:bg-secondary/80'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <button
+                  onClick={() => onSelect(item)}
+                  className="flex-1 text-left"
+                >
+                  <p className="text-sm font-medium text-foreground truncate group-hover:text-accent">
+                    {item.features.substring(0, 35)}...
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">{item.tone}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(item.timestamp).toLocaleDateString()}
+                  </p>
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-1.5 rounded hover:bg-secondary/80 text-muted-foreground hover:text-foreground">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => onDelete(item.id)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-function SettingsTab() {
+function SettingsTab({
+  theme,
+  onThemeChange,
+  onUpgradeClick,
+}: {
+  theme: string | undefined
+  onThemeChange: (theme: string) => void
+  onUpgradeClick: () => void
+}) {
   return (
     <div className="py-4 space-y-6">
+      <div>
+        <h3 className="font-semibold text-sm mb-3">Appearance</h3>
+        <div className="space-y-3">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={theme === 'dark'}
+              onChange={(e) => onThemeChange(e.target.checked ? 'dark' : 'light')}
+              className="w-4 h-4 rounded"
+            />
+            <span className="text-sm flex items-center gap-2">
+              {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              Dark Mode
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <Separator className="bg-border" />
+
       <div>
         <h3 className="font-semibold text-sm mb-3">Preferences</h3>
         <div className="space-y-3">
@@ -192,11 +320,21 @@ function SettingsTab() {
             <input type="checkbox" defaultChecked className="w-4 h-4 rounded" />
             <span className="text-sm">Auto-save history</span>
           </label>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" className="w-4 h-4 rounded" />
-            <span className="text-sm">Dark mode</span>
-          </label>
         </div>
+      </div>
+
+      <Separator className="bg-border" />
+
+      <div>
+        <h3 className="font-semibold text-sm mb-3">Premium</h3>
+        <Button
+          onClick={onUpgradeClick}
+          variant="outline"
+          className="w-full text-accent border-accent hover:bg-accent/10"
+          size="sm"
+        >
+          View Premium Features
+        </Button>
       </div>
 
       <Separator className="bg-border" />

@@ -3,14 +3,25 @@
 import { useState } from 'react'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
+import { HistoryItem } from '@/app/page'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
-  history: Array<{ features: string; tone: string; output: string }>
-  onHistorySelect: (item: any) => void
+  history: HistoryItem[]
+  onHistorySelect: (item: HistoryItem) => void
+  onDeleteHistory: (id: string) => void
+  onNewGeneration: () => void
+  currentId: string | null
 }
 
-export function DashboardLayout({ children, history, onHistorySelect }: DashboardLayoutProps) {
+export function DashboardLayout({
+  children,
+  history,
+  onHistorySelect,
+  onDeleteHistory,
+  onNewGeneration,
+  currentId,
+}: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
@@ -27,6 +38,9 @@ export function DashboardLayout({ children, history, onHistorySelect }: Dashboar
       <Sidebar
         history={history}
         onHistorySelect={onHistorySelect}
+        onDeleteHistory={onDeleteHistory}
+        onNewGeneration={onNewGeneration}
+        currentId={currentId}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
